@@ -183,7 +183,7 @@ def function_definition_statement(tokens, i, table, func_ret_type):
     func_ret_type (string) = Function return type
     Returns
     =======
-    OpCodes, int, string: The opcodes for the assign code, the index, and the name of the function after
+    OpCode, int, string: The opcode for the assign code, the index, and the name of the function after
                          parsing function calling statement
     Grammar
     =======
@@ -228,31 +228,30 @@ def function_definition_statement(tokens, i, table, func_ret_type):
             i += 1
         i -= 1
 
-    op_codes = []
+    # Check if { follows ) in function
+    check_if(
+        tokens[i + 1].type,
+        "left_brace",
+        "Expected { before function body",
+        tokens[i + 1].line_num,
+    )
 
+    # Loop until } is reached
+    i += 2
     ret_idx = i
-    if tokens[i].type == "newline":
-        ret_idx = i + 1
-    if tokens[i + 1].type == "left_brace":
-        # Loop until } is reached
-        i += 1
-        ret_idx = i
-        found_right_brace = False
-        while i < len(tokens) and tokens[i].type != "right_brace":
-            if tokens[i].type == "right_brace":
-                found_right_brace = True
-            i += 1
-
-        # If right brace found at end
-        if i != len(tokens) and tokens[i].type == "right_brace":
+    found_right_brace = False
+    while i < len(tokens) and tokens[i].type != "right_brace":
+        if tokens[i].type == "right_brace":
             found_right_brace = True
+        i += 1
 
-        # If right brace is not found then produce error
-        if not found_right_brace:
-            error("Expected } after function body", tokens[i].line_num)
+    # If right brace found at end
+    if i != len(tokens) and tokens[i].type == "right_brace":
+        found_right_brace = True
 
-    else:
-        op_codes.append(OpCode("scope_begin", "", ""))
+    # If right brace is not found then produce error
+    if not found_right_brace:
+        error("Expected } after function body", tokens[i].line_num)
 
     # Add the identifier types to function's typedata
     parameter_names = [p[0] for p in parameters]
@@ -264,10 +263,8 @@ def function_definition_statement(tokens, i, table, func_ret_type):
         func_typedata += "&&&" + "&&&".join(default_values)
     table.symbol_table[func_idx][2] = func_typedata
 
-    op_codes.append(OpCode("func_decl", func_name + "---" + "&&&".join(parameter_names), ""))
-    op_codes.reverse()
     return (
-        op_codes,
+        OpCode("func_decl", func_name + "---" + "&&&".join(parameter_names), ""),
         ret_idx - 1,
         func_name,
         func_ret_type,
